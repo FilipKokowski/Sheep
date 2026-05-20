@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Pliki źródłowe">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Pliki nagłówkowe">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Pliki zasobów">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Shadery">
+      <UniqueIdentifier>{38876698-0a3e-4b6c-b061-216a57e647b3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Shape.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="Icosphere.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="FastNoiseLite.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Shape.cpp">
+      <Filter>Pliki źródłowe</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Pliki źródłowe</Filter>
+    </ClCompile>
+    <ClCompile Include="Icosphere.cpp">
+      <Filter>Pliki źródłowe</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="basic.vs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="basic.fs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="terrain.vs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="terrain.fs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="skybox.fs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="skybox.vs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="atmo.fs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="atmo.vs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="vhs.fs">
+      <Filter>Shadery</Filter>
+    </None>
+  </ItemGroup>
+</Project>

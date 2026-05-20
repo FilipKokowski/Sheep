@@ -1,0 +1,7 @@
+﻿  Icosphere.cpp
+  main.cpp
+  Generowanie kodu...
+glew32s.lib(glew.obj) : warning LNK4099: nie znaleziono pliku PDB "glew32s.pdb" z elementem "glew32s.lib(glew.obj)" lub w pozycji "D:\SpaceGame\x64\Debug\glew32s.pdb"; obiekt zostanie skonsolidowany bez informacji debugowania
+LINK : warning LNK4098: domyślna biblioteka "LIBCMT" powoduje konflikt z innymi bibliotekami; użyj opcji /NODEFAULTLIB:biblioteka
+LINK : warning LNK4098: domyślna biblioteka "MSVCRT" powoduje konflikt z innymi bibliotekami; użyj opcji /NODEFAULTLIB:biblioteka
+  SpaceGame.vcxproj -> D:\SpaceGame\x64\Debug\SpaceGame.exe
