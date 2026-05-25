@@ -30,6 +30,7 @@ public:
     void updateGLBuffers();
 
     bool generateAsync(float radius, int seed, float freq, int octaves, glm::vec3 cameraPos, PlanetType planetType);
+    static float getPlanetSurfaceHeight(glm::vec3 position, float radius, int seed, float freq, int octaves, PlanetType planetType = EARTH);
 
     void draw();
 

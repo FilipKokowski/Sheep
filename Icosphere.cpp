@@ -102,22 +102,37 @@ void Icosphere::buildSubdividedSphere(float radius, int seed, float freq, int oc
     faces.push_back({ 3, 9, 4 });   faces.push_back({ 3, 4, 2 });   faces.push_back({ 3, 2, 6 });   faces.push_back({ 3, 6, 8 });   faces.push_back({ 3, 8, 9 });
     faces.push_back({ 4, 9, 5 });   faces.push_back({ 2, 4, 11 });  faces.push_back({ 6, 2, 10 });  faces.push_back({ 8, 6, 7 });   faces.push_back({ 9, 8, 1 });
 
-    float dist = glm::length(cameraPos);
-    int subdivisions = 5;
-    if (dist < radius * 1.15f) subdivisions = 6;
-    else if (dist > radius * 3.0f) subdivisions = 2;
+    const int MAX_LOD_LEVEL = 6;
 
-    for (int i = 0; i < subdivisions; i++) {
+    for (int i = 0; i < MAX_LOD_LEVEL; i++) {
         std::vector<TriangleIndices> faces2;
         for (const auto& tri : faces) {
-            unsigned int a = getMiddlePoint(tri.v1, tri.v2);
-            unsigned int b = getMiddlePoint(tri.v2, tri.v3);
-            unsigned int c = getMiddlePoint(tri.v3, tri.v1);
+            glm::vec3 triCenter = (baseVertices[tri.v1] + baseVertices[tri.v2] + baseVertices[tri.v3]) / 3.0f;
+            triCenter = glm::normalize(triCenter);
 
-            faces2.push_back({ tri.v1, a, c });
-            faces2.push_back({ tri.v2, b, a });
-            faces2.push_back({ tri.v3, c, b });
-            faces2.push_back({ a, b, c });
+            glm::vec3 worldTriPos = triCenter * radius;
+            float distToTri = glm::distance(cameraPos, worldTriPos);
+
+            int targetLevel = 2;
+
+            if (distToTri < radius * 0.6f)       targetLevel = 6;
+            else if (distToTri < radius * 1.5f)  targetLevel = 5;
+            else if (distToTri < radius * 2.5f)  targetLevel = 4; 
+            else if (distToTri < radius * 3.5f)  targetLevel = 3;
+
+            if (i < targetLevel) {
+                unsigned int a = getMiddlePoint(tri.v1, tri.v2);
+                unsigned int b = getMiddlePoint(tri.v2, tri.v3);
+                unsigned int c = getMiddlePoint(tri.v3, tri.v1);
+
+                faces2.push_back({ tri.v1, a, c });
+                faces2.push_back({ tri.v2, b, a });
+                faces2.push_back({ tri.v3, c, b });
+                faces2.push_back({ a, b, c });
+            }
+            else {
+                faces2.push_back(tri);
+            }
         }
         faces = faces2;
     }
@@ -175,6 +190,7 @@ void Icosphere::buildSubdividedSphere(float radius, int seed, float freq, int oc
 
     unsigned int skirtStartIndex = static_cast<unsigned int>(localVertices.size());
 
+    int subdivisions = 7;
     float skirtDepth = (radius * 0.04f) / (float)(subdivisions + 1);
 
     for (auto const& [edgeKey, info] : edgeUsage) {
@@ -292,4 +308,32 @@ void Icosphere::draw() {
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(meshIndices.size()), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
+}
+
+float Icosphere::getPlanetSurfaceHeight(glm::vec3 position, float radius, int seed, float freq, int octaves, PlanetType planetType) {
+    FastNoiseLite localNoise;
+    localNoise.SetSeed(seed);
+    localNoise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    localNoise.SetFractalType(FastNoiseLite::FractalType_FBm);
+    localNoise.SetFrequency(freq);
+    localNoise.SetFractalOctaves(octaves);
+
+    glm::vec3 sphereDir = glm::normalize(position);
+    float heightOffset = 0.0f;
+
+    if (planetType != ASTEROID) {
+        float continent = localNoise.GetNoise(sphereDir.x * 0.8f, sphereDir.y * 0.8f, sphereDir.z * 0.8f);
+        float mountain = localNoise.GetNoise(sphereDir.x * 3.5f, sphereDir.y * 3.5f, sphereDir.z * 3.5f);
+        float ridge = 1.0f - std::abs(mountain);
+
+        if (continent > 0.15f) heightOffset = ((continent - 0.15f) * 0.10f) + (ridge * (continent - 0.15f) * 0.12f);
+        else heightOffset = (continent - 0.15f) * 0.06f;
+    }
+    else {
+        float baseShape = localNoise.GetNoise(sphereDir.x * .6f, sphereDir.y * .6f, sphereDir.z * .6f);
+        float craters = localNoise.GetNoise(sphereDir.x * 4.0f, sphereDir.y * 4.0f, sphereDir.z * 4.0f);
+        heightOffset = baseShape - craters * .5f;
+    }
+
+    return radius + (heightOffset * radius);
 }

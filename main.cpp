@@ -10,6 +10,9 @@
 #include <vector>
 
 #include "Icosphere.h"
+#include "ModelLoader.h"
+#include "GameObject.h"
+#include "ParticleSystem.h"
 
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 55.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -30,7 +33,7 @@ const float GRAVITY_CONSTANT = 9.81f;
 const float JETPACK_FORCE = 15.0f;
 
 float planetRotationAngle = 0;
-float planetRotationSpeed = .5f;
+float planetRotationSpeed = .005f;
 
 enum Filters {
     NONE,
@@ -49,34 +52,6 @@ struct CameraData {
     glm::vec3& up;
     glm::vec3& earthPos;
 };
-
-float getPlanetSurfaceHeight(glm::vec3 position, float radius, int seed, float freq, int octaves, PlanetType planetType = EARTH) {
-    FastNoiseLite localNoise;
-    localNoise.SetSeed(seed);
-    localNoise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
-    localNoise.SetFractalType(FastNoiseLite::FractalType_FBm);
-    localNoise.SetFrequency(freq);
-    localNoise.SetFractalOctaves(octaves);
-
-    glm::vec3 sphereDir = glm::normalize(position);
-    float heightOffset = 0.0f;
-
-    if (planetType != ASTEROID) {
-        float continent = localNoise.GetNoise(sphereDir.x * 0.8f, sphereDir.y * 0.8f, sphereDir.z * 0.8f);
-        float mountain = localNoise.GetNoise(sphereDir.x * 3.5f, sphereDir.y * 3.5f, sphereDir.z * 3.5f);
-        float ridge = 1.0f - std::abs(mountain);
-
-        if (continent > 0.15f) heightOffset = ((continent - 0.15f) * 0.10f) + (ridge * (continent - 0.15f) * 0.12f);
-        else heightOffset = (continent - 0.15f) * 0.06f;
-    }
-    else {
-        float baseShape = localNoise.GetNoise(sphereDir.x * .6f, sphereDir.y * .6f, sphereDir.z * .6f);
-        float craters = localNoise.GetNoise(sphereDir.x * 4.0f, sphereDir.y * 4.0f, sphereDir.z * 4.0f);
-        heightOffset = baseShape - craters * .5f;
-    }
-
-    return radius + (heightOffset * radius);
-}
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     CameraData* data = static_cast<CameraData*>(glfwGetWindowUserPointer(window));
@@ -168,6 +143,12 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+    glfwWindowHint(GLFW_RED_BITS, 8);
+    glfwWindowHint(GLFW_GREEN_BITS, 8);
+    glfwWindowHint(GLFW_BLUE_BITS, 8);
+    glfwWindowHint(GLFW_ALPHA_BITS, 8);
+    glfwWindowHint(GLFW_DEPTH_BITS, 24);
+
     int windowWidth = 1280;
     int windowHeight = 720;
     GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "Custom Space Sandbox", nullptr, nullptr);
@@ -182,6 +163,8 @@ int main() {
 
     unsigned int terrainShader = createShaderProgram("terrain.vs", "terrain.fs");
     unsigned int skyboxShader = createShaderProgram("skybox.vs", "skybox.fs");
+    unsigned int modelShader = createShaderProgram("model.vs", "model.fs");
+    unsigned int shadowShader = createShaderProgram("shadow.vs", "shadow.fs");
 
     std::string vhsVertexSrc = R"(
         #version 330 core
@@ -215,10 +198,16 @@ int main() {
     bool plusPressed = false;
     bool minusPressed = false;
 
+    bool fPressed = false;
+    bool flashlightOn = false;
+
     Icosphere earth;
     glm::vec3 earthPos(0.0f, 0.0f, 0.0f);
     float earthRadius = 50.0f;
     glm::vec3 lastRegenEarth(0.0f);
+
+    ParticleSystem trees;
+    trees.generateTrees(500, earthPos, earthRadius, createShaderProgram("model.vs", "model.fs"), currentSeed, currentFrequency, currentOctaves);
 
     earth.generateAsync(earthRadius, currentSeed, currentFrequency, currentOctaves, cameraPos, EARTH);
     lastRegenEarth = cameraPos;
@@ -227,6 +216,31 @@ int main() {
 
     CameraData camData = { cameraPos, cameraFront, cameraUp, earthPos };
     glfwSetWindowUserPointer(window, &camData);
+
+    const unsigned int shadowRes = 4096;
+    unsigned int depthMapFBO;
+    glGenFramebuffers(1, &depthMapFBO);
+
+    unsigned int depthMap;
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowRes, shadowRes, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    float borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = (float)glfwGetTime();
@@ -250,6 +264,14 @@ int main() {
             if (!minusPressed) { activeFilterType = (activeFilterType - 1 + TOTAL_FILTERS) % TOTAL_FILTERS; minusPressed = true; }
         }
         else { minusPressed = false; }
+
+        if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
+            if (!fPressed) {
+                flashlightOn = !flashlightOn;
+                fPressed = true;
+            }
+        }
+        else { fPressed = false; }
 
         float distToPlanet = glm::distance(cameraPos, earthPos);
         float atmosphereRadius = earthRadius * 1.5f;
@@ -282,7 +304,7 @@ int main() {
             glm::mat4 invPlanetRot = glm::rotate(glm::mat4(1.0f), -planetRotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
             glm::vec3 rotatedPosVec = glm::vec3(invPlanetRot * glm::vec4(cameraPos - earthPos, 1.0f));
 
-            float surfaceLevel = getPlanetSurfaceHeight(rotatedPosVec, earthRadius, currentSeed, currentFrequency, currentOctaves, EARTH);
+            float surfaceLevel = Icosphere::getPlanetSurfaceHeight(rotatedPosVec, earthRadius, currentSeed, currentFrequency, currentOctaves, EARTH);
 
             if (glm::distance(cameraPos, earthPos) <= surfaceLevel + 1.8f) {
                 verticalVelocity = 0;
@@ -346,13 +368,48 @@ int main() {
         }
         earth.updateGLBuffers();
 
-        glEnable(GL_DEPTH_TEST); glEnable(GL_CULL_FACE);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)windowWidth / (float)windowHeight, 0.05f, 1000.0f);
+
         glm::vec3 lightDir = glm::normalize(glm::vec3(1.0f, 0.2f, 1.0f));
+        glm::vec3 lightPos = earthPos + (lightDir * 150.0f);
+
+        float near_plane = 1.0f, far_plane = 300.0f;
+        glm::mat4 lightProjection = glm::ortho(-120.0f, 120.0f, -120.0f, 120.0f, near_plane, far_plane);
+        glm::mat4 lightView = glm::lookAt(lightPos, earthPos, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+
+        glm::mat4 modelEarth = glm::translate(glm::mat4(1.0f), earthPos);
+        modelEarth = glm::rotate(modelEarth, planetRotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+
+        glEnable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+
+        glViewport(0, 0, shadowRes, shadowRes);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        glUseProgram(shadowShader);
+        glUniformMatrix4fv(glGetUniformLocation(shadowShader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+
+        glUniformMatrix4fv(glGetUniformLocation(shadowShader, "model"), 1, GL_FALSE, glm::value_ptr(modelEarth));
+        earth.draw();
+
+        for (auto& tree : trees.trees) {
+            tree.setShader(shadowShader);
+        }
+        trees.draw(view, projection, planetRotationAngle);
+        for (auto& tree : trees.trees) {
+            tree.setShader(modelShader);
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glViewport(0, 0, windowWidth, windowHeight);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
 
         glDisable(GL_CULL_FACE); glDisable(GL_DEPTH_TEST);
         glUseProgram(skyboxShader);
@@ -365,25 +422,50 @@ int main() {
         glBindVertexArray(dummyVAO); glDrawArrays(GL_TRIANGLES, 0, 3);
         glEnable(GL_DEPTH_TEST); glEnable(GL_CULL_FACE);
 
+        float cutOff = flashlightOn ? glm::cos(glm::radians(12.5f)) : 3.0f;
+        float outerCutOff = flashlightOn ? glm::cos(glm::radians(17.5f)) : 2.0f;
+
         glUseProgram(terrainShader);
+        glUniform3fv(glGetUniformLocation(terrainShader, "flashLightPos"), 1, glm::value_ptr(cameraPos));
+        glUniform3fv(glGetUniformLocation(terrainShader, "flashLightDir"), 1, glm::value_ptr(cameraFront));
+        glUniform1f(glGetUniformLocation(terrainShader, "flashLightCutOff"), cutOff);
+        glUniform1f(glGetUniformLocation(terrainShader, "flashLightOuterCutOff"), outerCutOff);
+
         glUniformMatrix4fv(glGetUniformLocation(terrainShader, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(terrainShader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniform3fv(glGetUniformLocation(terrainShader, "lightDir"), 1, glm::value_ptr(lightDir));
         glUniform3fv(glGetUniformLocation(terrainShader, "lightColor"), 1, glm::value_ptr(sunColor));
         glUniform3fv(glGetUniformLocation(terrainShader, "viewPos"), 1, glm::value_ptr(cameraPos));
-
-        glm::mat4 modelEarth = glm::translate(glm::mat4(1.0f), earthPos);
-        modelEarth = glm::rotate(modelEarth, planetRotationAngle, glm::vec3(0.0f, 1.0f, 0.0f)); // Obrót wokół osi Y
-
         glUniformMatrix4fv(glGetUniformLocation(terrainShader, "model"), 1, GL_FALSE, glm::value_ptr(modelEarth));
         glUniform1f(glGetUniformLocation(terrainShader, "planetRadius"), earthRadius);
         glUniform1i(glGetUniformLocation(terrainShader, "planetType"), EARTH);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        glUniform1i(glGetUniformLocation(terrainShader, "shadowMap"), 1);
+        glUniformMatrix4fv(glGetUniformLocation(terrainShader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+
         earth.draw();
 
-        glDisable(GL_DEPTH_TEST); glDisable(GL_CULL_FACE);
+        glUseProgram(modelShader);
+        glUniform3fv(glGetUniformLocation(modelShader, "flashLightPos"), 1, glm::value_ptr(cameraPos));
+        glUniform3fv(glGetUniformLocation(modelShader, "flashLightDir"), 1, glm::value_ptr(cameraFront));
+        glUniform1f(glGetUniformLocation(modelShader, "flashLightCutOff"), cutOff);
+        glUniform1f(glGetUniformLocation(modelShader, "flashLightOuterCutOff"), outerCutOff);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        glUniform1i(glGetUniformLocation(modelShader, "shadowMap"), 1);
+        glUniformMatrix4fv(glGetUniformLocation(modelShader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+
+        trees.draw(view, projection, planetRotationAngle);
+
         glBindTexture(GL_TEXTURE_2D, screenTexture);
         glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, windowWidth, windowHeight, 0);
-        glClear(GL_COLOR_BUFFER_BIT);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
 
         glUseProgram(vhsShader);
         glActiveTexture(GL_TEXTURE0);
@@ -401,5 +483,6 @@ int main() {
     glDeleteTextures(1, &screenTexture);
     glDeleteVertexArrays(1, &dummyVAO);
     glDeleteProgram(terrainShader); glDeleteProgram(skyboxShader); glDeleteProgram(vhsShader);
+    glDeleteProgram(shadowShader);
     glfwTerminate(); return 0;
 }

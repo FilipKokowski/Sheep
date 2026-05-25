@@ -61,4 +61,5 @@ void main() {
         
         FragColor = vec4(finalSketch, 1.0);
     }
+
 }
