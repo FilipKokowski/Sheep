@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <GL/glew.h>
+#include <random>
 
 #include <string>
 
@@ -10,8 +11,17 @@
 #include <glm/gtc/type_ptr.hpp>
 
 class GameObject {
-public:
+    uint64_t uuid_gen() {
+        static std::random_device rd;
+        static std::mt19937_64 engine(rd());
+        static std::uniform_int_distribution<uint64_t> distribution;
 
+        return distribution(engine);
+    }
+
+    uint64_t uuid;
+
+public:
     glm::vec3 
         pos = glm::vec3(0.0f, 0.0f, 0.0f), 
         rot = glm::vec3(0.0f, 0.0f, 0.0f), 
@@ -25,7 +35,9 @@ public:
 
     unsigned int modelShader = 0;
 
-    GameObject() {}
+    GameObject() {
+        this->uuid = uuid_gen();
+    }
 
     glm::mat4 getModelMatrix() {
         glm::mat4 model = glm::mat4(1.0f);
@@ -72,9 +84,7 @@ public:
         this->modelShader = shader;
     }
 
-    void update() {
-
-    }
+    virtual void update(float planetRotationAngle) {}
 
     void draw(glm::mat4 view, glm::mat4 projection) {
        // glUseProgram(modelShader);
@@ -94,5 +104,7 @@ public:
         glDrawArrays(GL_TRIANGLES, 0, (GLsizei)vertices.size());
         glBindVertexArray(0);
     }
+
+    uint64_t getUUID() const { return this->uuid; }
 
 };

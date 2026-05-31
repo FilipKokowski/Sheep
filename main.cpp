@@ -1,5 +1,6 @@
 #define GLEW_STATIC
 #include <GL/glew.h>
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -13,6 +14,10 @@
 #include "ModelLoader.h"
 #include "GameObject.h"
 #include "ParticleSystem.h"
+#include "EntityHandler.h"
+#include "Entity.h"
+#include "Player.h"
+#include "Fih.h"
 
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 55.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -27,10 +32,6 @@ float lastFrame = 0.0f;
 int currentSeed = 2137;
 float currentFrequency = 1.5f;
 int currentOctaves = 8;
-
-float verticalVelocity = 0.0f;
-const float GRAVITY_CONSTANT = 9.81f;
-const float JETPACK_FORCE = 15.0f;
 
 float planetRotationAngle = 0;
 float planetRotationSpeed = .005f;
@@ -197,7 +198,6 @@ int main() {
 
     bool plusPressed = false;
     bool minusPressed = false;
-
     bool fPressed = false;
     bool flashlightOn = false;
 
@@ -206,13 +206,26 @@ int main() {
     float earthRadius = 50.0f;
     glm::vec3 lastRegenEarth(0.0f);
 
-    ParticleSystem trees;
-    trees.generateTrees(500, earthPos, earthRadius, createShaderProgram("model.vs", "model.fs"), currentSeed, currentFrequency, currentOctaves);
+    ParticleSystem environmentSpawner;
+
+    GameObject treeTemplate;
+    treeTemplate.setShader(modelShader);
+    treeTemplate.setModel("tree.obj", "tree.png");
+
+    environmentSpawner.spawnStaticObjects(500, earthPos, earthRadius, treeTemplate,
+        1.002f, 1.040f,
+        currentSeed, currentFrequency, currentOctaves);
+
+    Fih fihTemplate;
+    fihTemplate.setShader(modelShader);
+    fihTemplate.setModel("fih.obj", "fih.png");
+
+    environmentSpawner.spawnLivingEntities<Fih>(80, earthPos, earthRadius, fihTemplate,
+        0.950f, 1.005f,
+        currentSeed, currentFrequency, currentOctaves);
 
     earth.generateAsync(earthRadius, currentSeed, currentFrequency, currentOctaves, cameraPos, EARTH);
     lastRegenEarth = cameraPos;
-
-    float G = GRAVITY_CONSTANT;
 
     CameraData camData = { cameraPos, cameraFront, cameraUp, earthPos };
     glfwSetWindowUserPointer(window, &camData);
@@ -228,7 +241,6 @@ int main() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowRes, shadowRes, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     float borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
@@ -239,13 +251,36 @@ int main() {
 
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
-
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    Player* myPlayer = new Player();
+    myPlayer->setShader(modelShader);
+    myPlayer->setModel("fih.obj", "fih.png");
+    myPlayer->originalPos = glm::vec3(0.0f, earthRadius + 5.0f, 0.0f);
+    myPlayer->pos = myPlayer->originalPos;
+    EntityHandler::add(myPlayer);
+
+    float fpsTimer = 0.0f;
+    int frameCount = 0;
 
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = (float)glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+        // --- LOGIKA LICZNIKA FPS (Dodaj tutaj) ---
+        frameCount++;
+        fpsTimer += deltaTime;
+
+        // Jeśli minęła równa sekunda (lub więcej)
+        if (fpsTimer >= 1.0f) {
+            // Wypisujemy FPS oraz czas trwania jednej klatki (Frametime) w milisekundach
+            printf("FPS: %d | Frametime: %.2f ms\n", frameCount, (1000.0f / (float)frameCount));
+
+            // Resetujemy liczniki na kolejną sekundę
+            frameCount = 0;
+            fpsTimer = 0.0f;
+        }
 
         float frameRotationFrame = planetRotationSpeed * deltaTime;
         planetRotationAngle += frameRotationFrame;
@@ -266,97 +301,10 @@ int main() {
         else { minusPressed = false; }
 
         if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
-            if (!fPressed) {
-                flashlightOn = !flashlightOn;
-                fPressed = true;
-            }
+            if (!fPressed) { flashlightOn = !flashlightOn; fPressed = true; }
         }
         else { fPressed = false; }
 
-        float distToPlanet = glm::distance(cameraPos, earthPos);
-        float atmosphereRadius = earthRadius * 1.5f;
-        bool inAtmosphere = distToPlanet < atmosphereRadius;
-
-        if (inAtmosphere) {
-            glm::mat4 dynamicPlanetRot = glm::rotate(glm::mat4(1.0f), frameRotationFrame, glm::vec3(0.0f, 1.0f, 0.0f));
-            cameraPos = earthPos + glm::vec3(dynamicPlanetRot * glm::vec4(cameraPos - earthPos, 1.0f));
-            cameraFront = glm::normalize(glm::vec3(dynamicPlanetRot * glm::vec4(cameraFront, 0.0f)));
-            cameraUp = glm::normalize(glm::vec3(dynamicPlanetRot * glm::vec4(cameraUp, 0.0f)));
-
-            glm::vec3 planetNormal = glm::normalize(cameraPos - earthPos);
-
-            glm::vec3 moveRight = glm::normalize(glm::cross(cameraFront, cameraUp));
-            glm::vec3 moveForward = glm::normalize(glm::cross(cameraUp, moveRight));
-
-            float cameraSpeed = 5.0f * deltaTime;
-            if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) cameraSpeed *= 5;
-
-            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) cameraPos += cameraSpeed * moveForward;
-            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) cameraPos -= cameraSpeed * moveForward;
-            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) cameraPos -= cameraSpeed * moveRight;
-            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) cameraPos += cameraSpeed * moveRight;
-
-            planetNormal = glm::normalize(cameraPos - earthPos);
-            if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) verticalVelocity += JETPACK_FORCE * deltaTime;
-            verticalVelocity -= G * deltaTime;
-            cameraPos += planetNormal * verticalVelocity * deltaTime;
-
-            glm::mat4 invPlanetRot = glm::rotate(glm::mat4(1.0f), -planetRotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
-            glm::vec3 rotatedPosVec = glm::vec3(invPlanetRot * glm::vec4(cameraPos - earthPos, 1.0f));
-
-            float surfaceLevel = Icosphere::getPlanetSurfaceHeight(rotatedPosVec, earthRadius, currentSeed, currentFrequency, currentOctaves, EARTH);
-
-            if (glm::distance(cameraPos, earthPos) <= surfaceLevel + 1.8f) {
-                verticalVelocity = 0;
-                cameraPos = earthPos + glm::normalize(cameraPos - earthPos) * (surfaceLevel + 1.8f);
-            }
-
-            planetNormal = glm::normalize(cameraPos - earthPos);
-            glm::vec3 newUp = planetNormal;
-            glm::vec3 axis = glm::cross(cameraUp, newUp);
-            float sinAngle = glm::length(axis);
-
-            if (sinAngle > 0.0000001f) {
-                axis = glm::normalize(axis);
-                float cosAngle = glm::clamp(glm::dot(cameraUp, newUp), -1.0f, 1.0f);
-                float angle = atan2(sinAngle, cosAngle);
-
-                glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), angle, axis);
-                cameraFront = glm::normalize(glm::vec3(rotation * glm::vec4(cameraFront, 0.0f)));
-            }
-            else if (glm::dot(cameraUp, newUp) < -0.99f) {
-                axis = glm::normalize(glm::cross(cameraFront, cameraUp));
-                glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), axis);
-                cameraFront = glm::normalize(glm::vec3(rotation * glm::vec4(cameraFront, 0.0f)));
-            }
-            cameraUp = newUp;
-
-        }
-        else {
-            glm::vec3 moveForward = cameraFront;
-            glm::vec3 moveRight = glm::normalize(glm::cross(cameraFront, cameraUp));
-            verticalVelocity = 0.0f;
-
-            float cameraSpeed = 5.0f * deltaTime;
-            if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) cameraSpeed *= 5;
-
-            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) cameraPos += cameraSpeed * moveForward;
-            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) cameraPos -= cameraSpeed * moveForward;
-            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) cameraPos -= cameraSpeed * moveRight;
-            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) cameraPos += cameraSpeed * moveRight;
-
-            if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) cameraPos += cameraUp * (JETPACK_FORCE * deltaTime);
-            if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) cameraPos -= cameraUp * (JETPACK_FORCE * deltaTime);
-
-            if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-                glm::mat4 roll = glm::rotate(glm::mat4(1.0f), glm::radians(-60.0f * deltaTime), cameraFront);
-                cameraUp = glm::normalize(glm::vec3(roll * glm::vec4(cameraUp, 0.0f)));
-            }
-            if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-                glm::mat4 roll = glm::rotate(glm::mat4(1.0f), glm::radians(60.0f * deltaTime), cameraFront);
-                cameraUp = glm::normalize(glm::vec3(roll * glm::vec4(cameraUp, 0.0f)));
-            }
-        }
 
         glm::mat4 invPlanetRot = glm::rotate(glm::mat4(1.0f), -planetRotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
         glm::vec3 rotatedCamPos = glm::vec3(invPlanetRot * glm::vec4(cameraPos - earthPos, 1.0f));
@@ -367,6 +315,10 @@ int main() {
             }
         }
         earth.updateGLBuffers();
+
+        EntityHandler::updateLogic(window, planetRotationAngle, deltaTime);
+
+        myPlayer->updateCamera(cameraPos, cameraFront, cameraUp);
 
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)windowWidth / (float)windowHeight, 0.05f, 1000.0f);
@@ -395,13 +347,12 @@ int main() {
         glUniformMatrix4fv(glGetUniformLocation(shadowShader, "model"), 1, GL_FALSE, glm::value_ptr(modelEarth));
         earth.draw();
 
-        for (auto& tree : trees.trees) {
-            tree.setShader(shadowShader);
+        for (auto& obj : environmentSpawner.staticObjects) {
+            obj.setShader(shadowShader);
         }
-        trees.draw(view, projection, planetRotationAngle);
-        for (auto& tree : trees.trees) {
-            tree.setShader(modelShader);
-        }
+        environmentSpawner.drawStatic(view, projection, planetRotationAngle);
+
+        EntityHandler::draw(view, projection, shadowShader, true);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -458,7 +409,12 @@ int main() {
         glUniform1i(glGetUniformLocation(modelShader, "shadowMap"), 1);
         glUniformMatrix4fv(glGetUniformLocation(modelShader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
-        trees.draw(view, projection, planetRotationAngle);
+        for (auto& obj : environmentSpawner.staticObjects) {
+            obj.setShader(modelShader);
+        }
+        environmentSpawner.drawStatic(view, projection, planetRotationAngle);
+
+        EntityHandler::draw(view, projection, modelShader, false);
 
         glBindTexture(GL_TEXTURE_2D, screenTexture);
         glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, windowWidth, windowHeight, 0);
