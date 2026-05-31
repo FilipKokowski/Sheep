@@ -27,6 +27,30 @@
     <ClInclude Include="FastNoiseLite.h">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
+    <ClInclude Include="Entity.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="EntityHandler.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="Fih.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="GameObject.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelLoader.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="MovementSystem.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="Player.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="ParticleSystem.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Shape.cpp">
@@ -36,6 +60,12 @@
       <Filter>Pliki źródłowe</Filter>
     </ClCompile>
     <ClCompile Include="Icosphere.cpp">
+      <Filter>Pliki źródłowe</Filter>
+    </ClCompile>
+    <ClCompile Include="EntityHandler.cpp">
+      <Filter>Pliki źródłowe</Filter>
+    </ClCompile>
+    <ClCompile Include="ModelLoader.cpp">
       <Filter>Pliki źródłowe</Filter>
     </ClCompile>
   </ItemGroup>
@@ -67,5 +97,37 @@
     <None Include="vhs.fs">
       <Filter>Shadery</Filter>
     </None>
+    <None Include="model.fs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="model.vs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="shadow.fs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="shadow.vs">
+      <Filter>Shadery</Filter>
+    </None>
+    <None Include="eep.obj">
+      <Filter>Pliki zasobów</Filter>
+    </None>
+    <None Include="fih.obj">
+      <Filter>Pliki zasobów</Filter>
+    </None>
+    <None Include="mushroom.obj">
+      <Filter>Pliki zasobów</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="eep.png">
+      <Filter>Pliki zasobów</Filter>
+    </Image>
+    <Image Include="fih.png">
+      <Filter>Pliki zasobów</Filter>
+    </Image>
+    <Image Include="mushroom.png">
+      <Filter>Pliki zasobów</Filter>
+    </Image>
   </ItemGroup>
 </Project>
