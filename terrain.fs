@@ -69,6 +69,7 @@ void main() {
     float normHeight = Height / planetRadius;
     vec3 terrainColor = vec3(0.5);
 
+
     if (planetType == 0) {
         vec3 colorOcean   = vec3(0.05, 0.18, 0.40);
         vec3 colorShallow = vec3(0.10, 0.32, 0.60);
@@ -89,28 +90,29 @@ void main() {
         float wSnow = smoothstep(1.090, 1.120, normHeight);
         terrainColor = mix(terrainColor, colorSnow, wSnow);
     } 
-    else if (planetType == 1) {
-        vec3 colorLowMaria = vec3(0.13, 0.13, 0.14); 
-        vec3 colorHighlands = vec3(0.38, 0.38, 0.39); 
-        vec3 colorCraters   = vec3(0.58, 0.58, 0.60); 
-
-        float wHigh = smoothstep(0.98, 1.01, normHeight);
-        terrainColor = mix(colorLowMaria, colorHighlands, wHigh);
-        float wCrater = smoothstep(1.03, 1.07, normHeight);
-        terrainColor = mix(terrainColor, colorCraters, wCrater);
-    } 
-    else if (planetType == 2) {
-        vec3 colorLowPlains = vec3(0.35, 0.12, 0.04); 
-        vec3 colorDesert    = vec3(0.68, 0.26, 0.10); 
-        vec3 colorDunes     = vec3(0.80, 0.42, 0.22); 
-        vec3 colorPolarIce  = vec3(0.92, 0.94, 0.97); 
+    else if (planetType == 1) {    
+        vec3 colorLowPlains = vec3(0.35, 0.12, 0.04);
+        vec3 colorDesert    = vec3(0.68, 0.26, 0.10);
+        vec3 colorDunes     = vec3(0.80, 0.42, 0.22);
+        vec3 colorPolarIce  = vec3(0.92, 0.94, 0.97);
 
         float wDes = smoothstep(0.95, 1.00, normHeight);
         terrainColor = mix(colorLowPlains, colorDesert, wDes);
         float wDune = smoothstep(1.03, 1.08, normHeight);
         terrainColor = mix(terrainColor, colorDunes, wDune);
+    
         float wIce = smoothstep(1.09, 1.11, normHeight);
         terrainColor = mix(terrainColor, colorPolarIce, wIce);
+    } 
+    else if (planetType == 2) {
+        vec3 colorLowMaria  = vec3(0.13, 0.13, 0.14);
+        vec3 colorHighlands = vec3(0.38, 0.38, 0.39);
+        vec3 colorCraters   = vec3(0.58, 0.58, 0.60);
+
+        float wHigh = smoothstep(0.98, 1.01, normHeight);
+        terrainColor = mix(colorLowMaria, colorHighlands, wHigh);
+        float wCrater = smoothstep(1.03, 1.07, normHeight);
+        terrainColor = mix(terrainColor, colorCraters, wCrater);
     }
     else if (planetType == 3) {
         vec3 colorDeepPit  = vec3(0.18, 0.16, 0.15);

@@ -42,13 +42,10 @@
     <ClInclude Include="ModelLoader.h">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
-    <ClInclude Include="MovementSystem.h">
-      <Filter>Pliki nagłówkowe</Filter>
-    </ClInclude>
     <ClInclude Include="Player.h">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
-    <ClInclude Include="ParticleSystem.h">
+    <ClInclude Include="Spawner.h">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
   </ItemGroup>
@@ -70,12 +67,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="basic.vs">
-      <Filter>Shadery</Filter>
-    </None>
-    <None Include="basic.fs">
-      <Filter>Shadery</Filter>
-    </None>
     <None Include="terrain.vs">
       <Filter>Shadery</Filter>
     </None>
@@ -86,12 +77,6 @@
       <Filter>Shadery</Filter>
     </None>
     <None Include="skybox.vs">
-      <Filter>Shadery</Filter>
-    </None>
-    <None Include="atmo.fs">
-      <Filter>Shadery</Filter>
-    </None>
-    <None Include="atmo.vs">
       <Filter>Shadery</Filter>
     </None>
     <None Include="vhs.fs">
@@ -117,6 +102,9 @@
     </None>
     <None Include="mushroom.obj">
       <Filter>Pliki zasobów</Filter>
+    </None>
+    <None Include="vhs.vs">
+      <Filter>Shadery</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

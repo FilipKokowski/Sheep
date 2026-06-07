@@ -18,8 +18,10 @@ void main() {
         float r = texture(screenTexture, uv + vec2(shift, 0.0)).r;
         float g = texture(screenTexture, uv).g;
         float b = texture(screenTexture, uv - vec2(shift, 0.0)).b;
+
         vec3 vhsColor = vec3(r, g, b);
         float scanline = sin(uv.y * 800.0) * 0.04;
+
         vhsColor -= scanline;
         FragColor = vec4(vhsColor, 1.0);
     }
@@ -31,35 +33,16 @@ void main() {
         FragColor = vec4(vec3(gray), 1.0);
     }
     else if (filterType == 4) {
-        vec2 tex_offset = 1.0 / vec2(textureSize(screenTexture, 0));
-        
-        float s00 = dot(texture(screenTexture, uv + vec2(-tex_offset.x, -tex_offset.y)).rgb, vec3(0.299, 0.587, 0.114));
-        float s10 = dot(texture(screenTexture, uv + vec2( 0.0,          -tex_offset.y)).rgb, vec3(0.299, 0.587, 0.114));
-        float s20 = dot(texture(screenTexture, uv + vec2( tex_offset.x, -tex_offset.y)).rgb, vec3(0.299, 0.587, 0.114));
-        
-        float s01 = dot(texture(screenTexture, uv + vec2(-tex_offset.x,  0.0)).rgb, vec3(0.299, 0.587, 0.114));
-        float s21 = dot(texture(screenTexture, uv + vec2( tex_offset.x,  0.0)).rgb, vec3(0.299, 0.587, 0.114));
-        
-        float s02 = dot(texture(screenTexture, uv + vec2(-tex_offset.x,  tex_offset.y)).rgb, vec3(0.299, 0.587, 0.114));
-        float s12 = dot(texture(screenTexture, uv + vec2( 0.0,           tex_offset.y)).rgb, vec3(0.299, 0.587, 0.114));
-        float s22 = dot(texture(screenTexture, uv + vec2( tex_offset.x,  tex_offset.y)).rgb, vec3(0.299, 0.587, 0.114));
-        
-        float gx = -s00 - 2.0 * s01 - s02 + s20 + 2.0 * s21 + s22;
-        float gy = -s00 - 2.0 * s10 - s20 + s02 + 2.0 * s12 + s22;
-        
-        float edge = length(vec2(gx, gy));
-        
-        float sketchLine = 1.0 - smoothstep(0.05, 0.25, edge);
-        
-        float originalGray = dot(color, vec3(0.299, 0.587, 0.114));
-        
-        vec3 paperColor = vec3(0.95, 0.95, 0.90);
-       
-        vec3 coloredBase = mix(paperColor * (originalGray * 0.7 + 0.3), color, 0.5);
-        
-        vec3 finalSketch = mix(vec3(0.1), coloredBase, sketchLine);
-        
-        FragColor = vec4(finalSketch, 1.0);
+        float pixelSize = 4; 
+    
+        vec2 screenRes = textureSize(screenTexture, 0);
+        vec2 pixelCoords = uv * screenRes;
+          
+        vec2 customPixelCoords = floor(pixelCoords / pixelSize) * pixelSize;
+        vec2 pixelUV = customPixelCoords / screenRes;
+    
+        vec3 pixelColor = texture(screenTexture, pixelUV).rgb;
+    
+        FragColor = vec4(pixelColor, 1.0);
     }
-
 }

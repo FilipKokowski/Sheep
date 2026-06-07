@@ -154,8 +154,7 @@
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="Icosphere.h" />
     <ClInclude Include="ModelLoader.h" />
-    <ClInclude Include="MovementSystem.h" />
-    <ClInclude Include="ParticleSystem.h" />
+    <ClInclude Include="Spawner.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Shape.h" />
   </ItemGroup>
@@ -167,10 +166,6 @@
     <ClCompile Include="Shape.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="atmo.fs" />
-    <None Include="atmo.vs" />
-    <None Include="basic.fs" />
-    <None Include="basic.vs" />
     <None Include="model.fs" />
     <None Include="model.vs" />
     <None Include="shadow.fs" />
@@ -180,6 +175,7 @@
     <None Include="terrain.fs" />
     <None Include="terrain.vs" />
     <None Include="vhs.fs" />
+    <None Include="vhs.vs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="eep.obj">

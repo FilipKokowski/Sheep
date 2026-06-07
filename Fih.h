@@ -80,11 +80,6 @@ public:
 
         float faceAngle = atan2(-currentMoveDir.z, currentMoveDir.x);
 
-        float totalTime = (float)glfwGetTime();
-        float phaseOffset = static_cast<float>(getUUID()) * 0.5f;
-        float wobbleAngle = sin(totalTime * 12.0f + phaseOffset) * glm::radians(15.0f);
-        glm::mat4 wobbleMatrix = glm::rotate(glm::mat4(1.0f), wobbleAngle, glm::vec3(0.0f, 0.0f, 1.0f));
-
-        localRotM = glm::rotate(alignment, faceAngle, glm::vec3(0.0f, 1.0f, 0.0f)) * wobbleMatrix;
+        localRotM = glm::rotate(alignment, faceAngle, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 };

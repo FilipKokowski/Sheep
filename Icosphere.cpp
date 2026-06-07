@@ -166,20 +166,6 @@ void Icosphere::buildSubdividedSphere(float radius, int seed, float freq, int oc
 
         localVertices[i].position = sphereDir * h;
         localVertices[i].normal = sphereDir;
-
-        float heightRel = (h - radius) / (radius * 0.2f);
-        if (planetType == EARTH) {
-            if (heightRel < -0.01f) localVertices[i].color = glm::vec3(0.08f, 0.18f, 0.36f);
-            else if (heightRel < 0.02f) localVertices[i].color = glm::vec3(0.12f, 0.32f, 0.58f);
-            else if (heightRel < 0.05f) localVertices[i].color = glm::vec3(0.76f, 0.72f, 0.52f);
-            else if (heightRel < 0.25f) localVertices[i].color = glm::vec3(0.18f, 0.48f, 0.16f);
-            else if (heightRel < 0.45f) localVertices[i].color = glm::vec3(0.36f, 0.28f, 0.22f);
-            else localVertices[i].color = glm::vec3(0.92f, 0.92f, 0.95f);
-        }
-        else {
-            float c = 0.3f + heightRel * 0.4f;
-            localVertices[i].color = glm::vec3(c, c, c * 1.05f);
-        }
     }
 
     for (const auto& tri : faces) {
@@ -206,9 +192,6 @@ void Icosphere::buildSubdividedSphere(float radius, int seed, float freq, int oc
 
             skirtV1.position -= glm::normalize(origV1.position) * skirtDepth;
             skirtV2.position -= glm::normalize(origV2.position) * skirtDepth;
-
-            skirtV1.color *= 0.2f;
-            skirtV2.color *= 0.2f;
 
             unsigned int newV1_idx = static_cast<unsigned int>(localVertices.size());
             localVertices.push_back(skirtV1);
@@ -296,8 +279,6 @@ void Icosphere::updateGLBuffers() {
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
 
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, color));
 
     glBindVertexArray(0);
 }
@@ -321,18 +302,58 @@ float Icosphere::getPlanetSurfaceHeight(glm::vec3 position, float radius, int se
     glm::vec3 sphereDir = glm::normalize(position);
     float heightOffset = 0.0f;
 
-    if (planetType != ASTEROID) {
-        float continent = localNoise.GetNoise(sphereDir.x * 0.8f, sphereDir.y * 0.8f, sphereDir.z * 0.8f);
-        float mountain = localNoise.GetNoise(sphereDir.x * 3.5f, sphereDir.y * 3.5f, sphereDir.z * 3.5f);
-        float ridge = 1.0f - std::abs(mountain);
+    float continent = 0.0f;
+    float mountain = 0.0f;
+    float ridge = 0.0f;
+    float baseShape = 0.0f;
+    float craters = 0.0f;
 
-        if (continent > 0.15f) heightOffset = ((continent - 0.15f) * 0.10f) + (ridge * (continent - 0.15f) * 0.12f);
-        else heightOffset = (continent - 0.15f) * 0.06f;
-    }
-    else {
-        float baseShape = localNoise.GetNoise(sphereDir.x * .6f, sphereDir.y * .6f, sphereDir.z * .6f);
-        float craters = localNoise.GetNoise(sphereDir.x * 4.0f, sphereDir.y * 4.0f, sphereDir.z * 4.0f);
-        heightOffset = baseShape - craters * .5f;
+    switch (planetType)
+    {
+    case EARTH:
+        continent = localNoise.GetNoise(sphereDir.x * 0.8f, sphereDir.y * 0.8f, sphereDir.z * 0.8f);
+        mountain = localNoise.GetNoise(sphereDir.x * 3.5f, sphereDir.y * 3.5f, sphereDir.z * 3.5f);
+        ridge = 1.0f - std::abs(mountain);
+
+        if (continent > 0.15f) {
+            heightOffset = ((continent - 0.15f) * 0.10f) + (ridge * (continent - 0.15f) * 0.12f);
+        }
+        else {
+            heightOffset = (continent - 0.15f) * 0.06f;
+        }
+        break;
+
+    case MARS:
+        continent = localNoise.GetNoise(sphereDir.x * 0.6f, sphereDir.y * 0.6f, sphereDir.z * 0.6f);
+        mountain = localNoise.GetNoise(sphereDir.x * 5.0f, sphereDir.y * 5.0f, sphereDir.z * 5.0f);
+
+        if (mountain > 0.0f) {
+            mountain = std::pow(mountain, 3.0f) * 0.25f;
+        }
+        else {
+            mountain = 0.0f;
+        }
+
+        heightOffset = (continent * 0.08f) + mountain;
+        break;
+
+    case MOON:
+        baseShape = localNoise.GetNoise(sphereDir.x * 1.2f, sphereDir.y * 1.2f, sphereDir.z * 1.2f);
+        craters = localNoise.GetNoise(sphereDir.x * 6.0f, sphereDir.y * 6.0f, sphereDir.z * 6.0f);
+        {
+            float largeCraters = -std::abs(baseShape) * 0.05f;
+            float smallCraters = -std::abs(craters) * 0.02f;
+            heightOffset = largeCraters + smallCraters;
+        }
+        break;
+
+    case ASTEROID:
+        baseShape = localNoise.GetNoise(sphereDir.x * 0.6f, sphereDir.y * 0.6f, sphereDir.z * 0.6f);
+        craters = localNoise.GetNoise(sphereDir.x * 4.0f, sphereDir.y * 4.0f, sphereDir.z * 4.0f);
+
+        heightOffset = (baseShape - craters * 0.5f) * 0.05f;
+
+        break;
     }
 
     return radius + (heightOffset * radius);

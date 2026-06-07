@@ -87,8 +87,6 @@ public:
     virtual void update(float planetRotationAngle) {}
 
     void draw(glm::mat4 view, glm::mat4 projection) {
-       // glUseProgram(modelShader);
-
         glUniformMatrix4fv(glGetUniformLocation(modelShader, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(modelShader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 

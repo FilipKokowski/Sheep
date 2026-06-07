@@ -69,7 +69,6 @@ void main() {
     float starIntensity = step(0.994, starWeight); 
     vec3 stars = vec3(starIntensity * hash(starGrid + vec3(2.0)));
     
-    stars *= (1.0 - step(0.98, sunDot));
     
     vec3 noisePos = viewDir * 3.5 + vec3(sin(time * 0.01), time * 0.005, cos(time * 0.01));
     float n = fbm(noisePos);

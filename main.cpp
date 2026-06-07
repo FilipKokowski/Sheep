@@ -13,7 +13,7 @@
 #include "Icosphere.h"
 #include "ModelLoader.h"
 #include "GameObject.h"
-#include "ParticleSystem.h"
+#include "Spawner.h"
 #include "EntityHandler.h"
 #include "Entity.h"
 #include "Player.h"
@@ -35,13 +35,14 @@ int currentOctaves = 8;
 
 float planetRotationAngle = 0;
 float planetRotationSpeed = .005f;
+PlanetType planetType = EARTH;
 
 enum Filters {
     NONE,
     VHS,
     NEGATIVE,
     MONOCHROME,
-    SKETCH
+    PIXEL
 };
 
 int activeFilterType = Filters::VHS;
@@ -114,7 +115,10 @@ unsigned int compileShader(unsigned int type, const std::string& source) {
     return id;
 }
 
-unsigned int createShaderProgramFromSources(const std::string& vertexSource, const std::string& fragmentSource) {
+unsigned int createShaderProgram(const char* vertex, const char* fragment) {
+    std::string vertexSource = loadShaderSource(vertex);
+    std::string fragmentSource = loadShaderSource(fragment);
+
     unsigned int vs = compileShader(GL_VERTEX_SHADER, vertexSource);
     unsigned int fs = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
     unsigned int program = glCreateProgram();
@@ -130,12 +134,6 @@ unsigned int createShaderProgramFromSources(const std::string& vertexSource, con
 
     glDeleteShader(vs); glDeleteShader(fs);
     return program;
-}
-
-unsigned int createShaderProgram(const char* vertexPath, const char* fragmentPath) {
-    std::string vertexSource = loadShaderSource(vertexPath);
-    std::string fragmentSource = loadShaderSource(fragmentPath);
-    return createShaderProgramFromSources(vertexSource, fragmentSource);
 }
 
 int main() {
@@ -167,18 +165,7 @@ int main() {
     unsigned int modelShader = createShaderProgram("model.vs", "model.fs");
     unsigned int shadowShader = createShaderProgram("shadow.vs", "shadow.fs");
 
-    std::string vhsVertexSrc = R"(
-        #version 330 core
-        out vec2 TexCoords;
-        void main() {
-            float x = -1.0 + float((gl_VertexID & 1) << 2);
-            float y = -1.0 + float((gl_VertexID & 2) << 1);
-            gl_Position = vec4(x, y, 0.0, 1.0);
-            TexCoords = vec2(x * 0.5 + 0.5, y * 0.5 + 0.5);
-        }
-    )";
-    std::string vhsFragmentSrc = loadShaderSource("vhs.fs");
-    unsigned int vhsShader = createShaderProgramFromSources(vhsVertexSrc, vhsFragmentSrc);
+    unsigned int vhsShader = createShaderProgram("vhs.vs", "vhs.fs");
 
     unsigned int dummyVAO;
     glGenVertexArrays(1, &dummyVAO);
@@ -206,7 +193,7 @@ int main() {
     float earthRadius = 50.0f;
     glm::vec3 lastRegenEarth(0.0f);
 
-    ParticleSystem environmentSpawner;
+    Spawner environmentSpawner;
 
     GameObject treeTemplate;
     treeTemplate.setShader(modelShader);
@@ -224,7 +211,7 @@ int main() {
         0.950f, 1.005f,
         currentSeed, currentFrequency, currentOctaves);
 
-    earth.generateAsync(earthRadius, currentSeed, currentFrequency, currentOctaves, cameraPos, EARTH);
+    earth.generateAsync(earthRadius, currentSeed, currentFrequency, currentOctaves, cameraPos, planetType);
     lastRegenEarth = cameraPos;
 
     CameraData camData = { cameraPos, cameraFront, cameraUp, earthPos };
@@ -268,16 +255,12 @@ int main() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // --- LOGIKA LICZNIKA FPS (Dodaj tutaj) ---
         frameCount++;
         fpsTimer += deltaTime;
 
-        // Jeśli minęła równa sekunda (lub więcej)
         if (fpsTimer >= 1.0f) {
-            // Wypisujemy FPS oraz czas trwania jednej klatki (Frametime) w milisekundach
-            printf("FPS: %d | Frametime: %.2f ms\n", frameCount, (1000.0f / (float)frameCount));
+            printf("FPS: %d\n", frameCount);
 
-            // Resetujemy liczniki na kolejną sekundę
             frameCount = 0;
             fpsTimer = 0.0f;
         }
@@ -310,7 +293,7 @@ int main() {
         glm::vec3 rotatedCamPos = glm::vec3(invPlanetRot * glm::vec4(cameraPos - earthPos, 1.0f));
 
         if (glm::distance(cameraPos, lastRegenEarth) > (earthRadius * 0.03f)) {
-            if (earth.generateAsync(earthRadius, currentSeed, currentFrequency, currentOctaves, rotatedCamPos, EARTH)) {
+            if (earth.generateAsync(earthRadius, currentSeed, currentFrequency, currentOctaves, rotatedCamPos, planetType)) {
                 lastRegenEarth = cameraPos;
             }
         }
@@ -326,8 +309,8 @@ int main() {
         glm::vec3 lightDir = glm::normalize(glm::vec3(1.0f, 0.2f, 1.0f));
         glm::vec3 lightPos = earthPos + (lightDir * 150.0f);
 
-        float near_plane = 1.0f, far_plane = 300.0f;
-        glm::mat4 lightProjection = glm::ortho(-120.0f, 120.0f, -120.0f, 120.0f, near_plane, far_plane);
+        float near_plane = 80.0f; float far_plane = 220.0f;
+        glm::mat4 lightProjection = glm::ortho(-55.0f, 55.0f, -55.0f, 55.0f, near_plane, far_plane);
         glm::mat4 lightView = glm::lookAt(lightPos, earthPos, glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 
@@ -373,8 +356,8 @@ int main() {
         glBindVertexArray(dummyVAO); glDrawArrays(GL_TRIANGLES, 0, 3);
         glEnable(GL_DEPTH_TEST); glEnable(GL_CULL_FACE);
 
-        float cutOff = flashlightOn ? glm::cos(glm::radians(12.5f)) : 3.0f;
-        float outerCutOff = flashlightOn ? glm::cos(glm::radians(17.5f)) : 2.0f;
+        float cutOff = flashlightOn ? glm::cos(glm::radians(12.5f)) : 5.0f;
+        float outerCutOff = flashlightOn ? glm::cos(glm::radians(17.5f)) : 5.0f;
 
         glUseProgram(terrainShader);
         glUniform3fv(glGetUniformLocation(terrainShader, "flashLightPos"), 1, glm::value_ptr(cameraPos));
@@ -389,7 +372,7 @@ int main() {
         glUniform3fv(glGetUniformLocation(terrainShader, "viewPos"), 1, glm::value_ptr(cameraPos));
         glUniformMatrix4fv(glGetUniformLocation(terrainShader, "model"), 1, GL_FALSE, glm::value_ptr(modelEarth));
         glUniform1f(glGetUniformLocation(terrainShader, "planetRadius"), earthRadius);
-        glUniform1i(glGetUniformLocation(terrainShader, "planetType"), EARTH);
+        glUniform1i(glGetUniformLocation(terrainShader, "planetType"), planetType);
 
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, depthMap);
